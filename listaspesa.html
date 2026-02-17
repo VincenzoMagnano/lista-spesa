@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lista della Spesa – Vincenzo Magnano</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream: #f5f0e8;
+    --dark: #1a1a1a;
+    --green: #2d5a27;
+    --green-light: #4a8c40;
+    --accent: #c8a45a;
+    --red: #8b2a2a;
+    --card-bg: #ffffff;
+    --border: #e0d9cc;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background-color: var(--cream);
+    font-family: 'DM Sans', sans-serif;
+    color: var(--dark);
+    min-height: 100vh;
+    padding: 2rem 1rem 4rem;
+  }
+
+  /* Noise texture overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 860px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 3rem;
+    animation: fadeDown 0.7s ease both;
+  }
+
+  header .tag {
+    display: inline-block;
+    background: var(--green);
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 0.35rem 1rem;
+    border-radius: 2px;
+    margin-bottom: 1rem;
+  }
+
+  header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2.2rem, 6vw, 3.5rem);
+    font-weight: 900;
+    line-height: 1.1;
+    color: var(--dark);
+    margin-bottom: 0.5rem;
+  }
+
+  header h1 span { color: var(--green); }
+
+  header p {
+    font-size: 0.9rem;
+    color: #666;
+    font-weight: 300;
+    letter-spacing: 0.04em;
+  }
+
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin: 0.8rem auto;
+    max-width: 300px;
+  }
+  .divider::before, .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--accent);
+    opacity: 0.5;
+  }
+  .divider-icon { color: var(--accent); font-size: 1rem; }
+
+  /* Legend badges */
+  .legend {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 2.5rem;
+    flex-wrap: wrap;
+    animation: fadeUp 0.7s 0.2s ease both;
+  }
+  .badge {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.78rem;
+    font-weight: 500;
+    padding: 0.35rem 0.9rem;
+    border-radius: 999px;
+    border: 1.5px solid;
+  }
+  .badge.on { border-color: var(--green); color: var(--green); background: rgba(45,90,39,0.07); }
+  .badge.off { border-color: #c05000; color: #c05000; background: rgba(192,80,0,0.07); }
+  .badge.both { border-color: var(--accent); color: #8a6a20; background: rgba(200,164,90,0.1); }
+  .badge-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .badge.on .badge-dot { background: var(--green); }
+  .badge.off .badge-dot { background: #c05000; }
+  .badge.both .badge-dot { background: var(--accent); }
+
+  /* Grid layout */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 1.2rem;
+  }
+
+  .category {
+    background: var(--card-bg);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+    animation: fadeUp 0.6s ease both;
+  }
+
+  .category-header {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.9rem 1.1rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .cat-icon {
+    font-size: 1.3rem;
+    line-height: 1;
+  }
+
+  .cat-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--dark);
+  }
+
+  .cat-count {
+    margin-left: auto;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: #999;
+    background: var(--cream);
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+  }
+
+  .items {
+    padding: 0.6rem 0.5rem;
+  }
+
+  .item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.7rem;
+    padding: 0.55rem 0.6rem;
+    border-radius: 6px;
+    transition: background 0.15s;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .item:hover { background: rgba(0,0,0,0.03); }
+  .item.checked { opacity: 0.42; }
+  .item.checked .item-name { text-decoration: line-through; }
+
+  .checkbox {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    border: 2px solid var(--border);
+    margin-top: 1px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+  }
+  .item.checked .checkbox {
+    background: var(--green);
+    border-color: var(--green);
+  }
+  .item.checked .checkbox::after {
+    content: '✓';
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .item-body { flex: 1; min-width: 0; }
+
+  .item-name {
+    font-size: 0.88rem;
+    font-weight: 500;
+    color: #222;
+    line-height: 1.3;
+  }
+
+  .item-detail {
+    font-size: 0.73rem;
+    color: #888;
+    font-weight: 300;
+    margin-top: 0.1rem;
+  }
+
+  .item-pills {
+    display: flex;
+    gap: 0.3rem;
+    flex-wrap: wrap;
+    margin-top: 0.25rem;
+  }
+
+  .pill {
+    font-size: 0.65rem;
+    font-weight: 500;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    letter-spacing: 0.04em;
+  }
+  .pill.on { background: rgba(45,90,39,0.1); color: var(--green); }
+  .pill.off { background: rgba(192,80,0,0.1); color: #c05000; }
+  .pill.both { background: rgba(200,164,90,0.15); color: #8a6a20; }
+
+  /* Note card */
+  .notes-card {
+    margin-top: 2rem;
+    background: var(--dark);
+    color: #eee;
+    border-radius: 12px;
+    padding: 1.4rem 1.6rem;
+    animation: fadeUp 0.7s 0.5s ease both;
+  }
+  .notes-card h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.1rem;
+    margin-bottom: 0.8rem;
+    color: var(--accent);
+  }
+  .notes-card ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+  .notes-card li {
+    font-size: 0.83rem;
+    font-weight: 300;
+    display: flex;
+    gap: 0.6rem;
+    align-items: flex-start;
+    line-height: 1.5;
+  }
+  .notes-card li::before {
+    content: '→';
+    color: var(--accent);
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  footer {
+    text-align: center;
+    margin-top: 2rem;
+    font-size: 0.72rem;
+    color: #aaa;
+    font-weight: 300;
+    animation: fadeUp 0.7s 0.6s ease both;
+  }
+
+  @keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .category:nth-child(2) { animation-delay: 0.08s; }
+  .category:nth-child(3) { animation-delay: 0.13s; }
+  .category:nth-child(4) { animation-delay: 0.18s; }
+  .category:nth-child(5) { animation-delay: 0.23s; }
+  .category:nth-child(6) { animation-delay: 0.28s; }
+  .category:nth-child(7) { animation-delay: 0.33s; }
+
+  @media (max-width: 500px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="tag">🥗 Piano Alimentare – Dr. Alexander Iacono</div>
+    <h1>Lista della <span>Spesa</span></h1>
+    <div class="divider"><span class="divider-icon">✦</span></div>
+    <p>Vincenzo Magnano · Visita del 22/01/2026</p>
+  </header>
+
+  <div class="legend">
+    <div class="badge on"><span class="badge-dot"></span> Solo Giorno ON</div>
+    <div class="badge off"><span class="badge-dot"></span> Solo Giorno OFF</div>
+    <div class="badge both"><span class="badge-dot"></span> Entrambi i giorni</div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="notes-card">
+    <h3>📌 Note dal nutrizionista</h3>
+    <ul>
+      <li>Bevi almeno 4–5 litri di acqua al giorno</li>
+      <li>1 cucchiaino di olio extravergine = 4 g</li>
+      <li>Preferisci pasta e riso integrale quando possibile</li>
+      <li>La banana è solo indicativa: scegli la frutta che preferisci</li>
+      <li>Integrazione: Acido Alfa Lipoico – 1 cps/giorno lontano dai pasti</li>
+    </ul>
+  </div>
+
+  <footer>Lista generata dal piano alimentare personale · Clicca sugli articoli per spuntarli ✓</footer>
+</div>
+
+<script>
+const categories = [
+  {
+    icon: '🥚',
+    title: 'Uova e Derivati',
+    items: [
+      { name: 'Albumi d\'uovo', detail: '300 g/giorno', when: 'both' },
+      { name: 'Uova di gallina intere', detail: 'n° 3 – alternativa a proteine (facoltativo)', when: 'both' },
+    ]
+  },
+  {
+    icon: '🍗',
+    title: 'Carne & Pollame',
+    items: [
+      { name: 'Petto di pollo', detail: '250 g (pranzo/cena) – principale', when: 'both' },
+      { name: 'Coscia di pollo', detail: '190 g – alternativa cena', when: 'both' },
+      { name: 'Hamburger di pollo', detail: '190–250 g – alternativa', when: 'both' },
+      { name: 'Petto di tacchino', detail: '230 g – alternativa cena', when: 'both' },
+      { name: 'Fesa di tacchino arrosto', detail: '110 g – alternativa merenda', when: 'on' },
+      { name: 'Vitello magro', detail: '230–250 g – alternativa', when: 'both' },
+      { name: 'Manzo magro', detail: '210 g – alternativa cena', when: 'both' },
+      { name: 'Maiale magro', detail: '190 g – alternativa cena', when: 'both' },
+    ]
+  },
+  {
+    icon: '🐟',
+    title: 'Pesce & Frutti di Mare',
+    items: [
+      { name: 'Tonno al naturale', detail: '150 g – pranzo', when: 'both' },
+      { name: 'Gamberi', detail: '300 g – alternativa pranzo', when: 'both' },
+      { name: 'Merluzzo o Nasello', detail: '340 g – alternativa cena', when: 'both' },
+      { name: 'Pesce spada', detail: '210 g – alternativa cena', when: 'both' },
+    ]
+  },
+  {
+    icon: '🌾',
+    title: 'Cereali & Carboidrati',
+    items: [
+      { name: 'Farina d\'avena', detail: 'ON: 70 g colazione + 50 g merenda · OFF: 50 g colazione', when: 'both' },
+      { name: 'Riso (per riso in bianco)', detail: '100 g – pranzo', when: 'both' },
+      { name: 'Pasta di semola', detail: 'ON: 120 g cena · OFF: 80 g cena', when: 'both' },
+      { name: 'Pane di tipo 0', detail: '120 g (alt. pranzo) · 150 g (alt. cena)', when: 'both' },
+      { name: 'Pane integrale', detail: '160 g (alt. pranzo) · 200 g (alt. cena ON) · 130 g (alt. OFF)', when: 'both' },
+      { name: 'Gnocchi di patate', detail: 'ON 250 g / OFF 240 g – alternativa pranzo', when: 'both' },
+      { name: 'Patate lesse', detail: 'ON 565 g · OFF 380 g – alternativa cena', when: 'both' },
+      { name: 'Gallette di riso', detail: '50 g – alternativa merenda', when: 'on' },
+      { name: 'Corn flakes', detail: '55 g – alternativa merenda', when: 'on' },
+    ]
+  },
+  {
+    icon: '🥛',
+    title: 'Latticini & Proteine',
+    items: [
+      { name: 'Yogurt greco 0% grassi', detail: '150 g metà mattina · 200 g (alt. merenda ON)', when: 'both' },
+      { name: 'Proteine in polvere (whey)', detail: 'ON: 30 g · OFF: 40 g – merenda', when: 'both' },
+    ]
+  },
+  {
+    icon: '🥜',
+    title: 'Legumi & Frutta Secca',
+    items: [
+      { name: 'Mandorle', detail: '5 g metà mattina + 5 g merenda', when: 'both' },
+      { name: 'Burro di arachidi (con arachidi in pezzi)', detail: '10 g – colazione', when: 'both' },
+      { name: 'Lenticchie secche', detail: '80 g – alternativa pranzo', when: 'both' },
+      { name: 'Lenticchie in scatola', detail: 'ON: 260 g · OFF: 160 g – alternativa pranzo', when: 'both' },
+    ]
+  },
+  {
+    icon: '🥬',
+    title: 'Verdure',
+    items: [
+      { name: 'Zucchine', detail: '250 g – contorno pranzo', when: 'both' },
+      { name: 'Spinaci', detail: '200 g – contorno cena', when: 'both' },
+      { name: 'Salsa di pomodoro', detail: '60 g – per gnocchi (se scegli alt.)', when: 'both' },
+    ]
+  },
+  {
+    icon: '🫒',
+    title: 'Condimenti & Altro',
+    items: [
+      { name: 'Olio extravergine di oliva', detail: 'ON: 4+4 cucchiaini · OFF: 4+5 cucchiaini', when: 'both' },
+      { name: 'Caffè', detail: '1 tazzina – colazione', when: 'both' },
+      { name: 'Acido Alfa Lipoico (integratore)', detail: '1 cps/giorno lontano dai pasti', when: 'both' },
+    ]
+  },
+];
+
+const grid = document.getElementById('grid');
+const stored = JSON.parse(localStorage.getItem('spesa_checked') || '{}');
+
+categories.forEach((cat, ci) => {
+  const card = document.createElement('div');
+  card.className = 'category';
+
+  const header = document.createElement('div');
+  header.className = 'category-header';
+  header.innerHTML = `
+    <span class="cat-icon">${cat.icon}</span>
+    <span class="cat-title">${cat.title}</span>
+    <span class="cat-count">${cat.items.length}</span>
+  `;
+  card.appendChild(header);
+
+  const items = document.createElement('div');
+  items.className = 'items';
+
+  cat.items.forEach((item, ii) => {
+    const key = `${ci}-${ii}`;
+    const div = document.createElement('div');
+    div.className = 'item' + (stored[key] ? ' checked' : '');
+
+    const whenLabel = item.when === 'on' ? 'ON' : item.when === 'off' ? 'OFF' : 'ON + OFF';
+
+    div.innerHTML = `
+      <div class="checkbox"></div>
+      <div class="item-body">
+        <div class="item-name">${item.name}</div>
+        <div class="item-detail">${item.detail}</div>
+        <div class="item-pills">
+          <span class="pill ${item.when}">${whenLabel}</span>
+        </div>
+      </div>
+    `;
+
+    div.addEventListener('click', () => {
+      div.classList.toggle('checked');
+      const checked = JSON.parse(localStorage.getItem('spesa_checked') || '{}');
+      checked[key] = div.classList.contains('checked');
+      localStorage.setItem('spesa_checked', JSON.stringify(checked));
+    });
+
+    items.appendChild(div);
+  });
+
+  card.appendChild(items);
+  grid.appendChild(card);
+});
+</script>
+</body>
+</html>
